@@ -48,6 +48,13 @@ export function lint(source: string): Finding[] {
   const lines = source.split(/\r\n|\n/);
   const stack: Frame[] = [];
 
+  // The step size (in spaces) between a frame and its first-seen child is
+  // taken as the file's convention. List entries get their own step because
+  // "- " bakes in a fixed offset that has nothing to do with mapping
+  // indentation, so comparing the two would just produce false positives.
+  let mapStep: number | null = null;
+  let listStep: number | null = null;
+
   lines.forEach((rawLine, i) => {
     const lineNo = i + 1;
 
@@ -107,6 +114,24 @@ export function lint(source: string): Finding[] {
     }
 
     if (!frame || frame.indent < keyIndent) {
+      if (frame) {
+        const step = keyIndent - frame.indent;
+        const established = isListItem ? listStep : mapStep;
+        if (established === null) {
+          if (isListItem) listStep = step;
+          else mapStep = step;
+        } else if (step !== established) {
+          findings.push(
+            makeFinding(
+              lineNo,
+              keyIndent + 1,
+              'indentation-consistency',
+              `indentation increases by ${step} space(s) here but by ${established} elsewhere in the file`,
+              'warning'
+            )
+          );
+        }
+      }
       frame = { indent: keyIndent, keys: new Set() };
       stack.push(frame);
     }

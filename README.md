@@ -17,6 +17,10 @@ actually show up in hand-edited config files.
   must be spaces)
 - `trailing-whitespace` - trailing spaces or tabs at the end of a line
 - `duplicate-key` - the same key defined twice inside the same mapping
+- `indentation-consistency` - a nested key or list entry indented by a
+  different number of spaces than the step already established elsewhere in
+  the file (this is how a stray extra space quietly nests a line under the
+  wrong parent)
 
 ## Usage
 
@@ -72,5 +76,5 @@ that function.
 
 ## Status
 
-Early. Three rules, no config file, no way to suppress a single finding
+Early. Four rules, no config file, no way to suppress a single finding
 inline. See the roadmap for what's planned next.
