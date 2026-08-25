@@ -25,11 +25,11 @@ function makeFinding(
   return { line, column, rule, message, severity };
 }
 
-// Strips a trailing # comment, but only outside of quoted strings, and only
-// when it starts a token (preceded by whitespace or start of line). This is
-// not a full YAML scalar parser -- it's just enough to keep comments from
-// polluting the indentation and key checks below.
-function stripComment(line: string): string {
+// Finds the start of a trailing # comment, but only outside of quoted
+// strings, and only when it starts a token (preceded by whitespace or start
+// of line). This is not a full YAML scalar parser -- it's just enough to
+// keep comments from polluting the indentation and key checks below.
+function findCommentIndex(line: string): number {
   let inSingle = false;
   let inDouble = false;
   for (let i = 0; i < line.length; i++) {
@@ -37,15 +37,73 @@ function stripComment(line: string): string {
     if (c === "'" && !inDouble) inSingle = !inSingle;
     else if (c === '"' && !inSingle) inDouble = !inDouble;
     else if (c === '#' && !inSingle && !inDouble) {
-      if (i === 0 || /\s/.test(line[i - 1])) return line.slice(0, i);
+      if (i === 0 || /\s/.test(line[i - 1])) return i;
     }
   }
-  return line;
+  return -1;
+}
+
+function stripComment(line: string): string {
+  const idx = findCommentIndex(line);
+  return idx === -1 ? line : line.slice(0, idx);
+}
+
+const DISABLE_LINE = /yamllint-ts:disable-line(?:=([\w-]+(?:\s*,\s*[\w-]+)*))?/;
+const DISABLE_NEXT_LINE =
+  /yamllint-ts:disable-next-line(?:=([\w-]+(?:\s*,\s*[\w-]+)*))?/;
+
+// A suppression is either "all rules" (from a bare disable comment) or a set
+// of specific rule names (from `disable-line=rule-a,rule-b`).
+type Suppression = 'all' | Set<string>;
+
+function addSuppression(
+  map: Map<number, Suppression>,
+  targetLine: number,
+  rulesArg: string | undefined
+): void {
+  if (rulesArg === undefined) {
+    map.set(targetLine, 'all');
+    return;
+  }
+  const existing = map.get(targetLine);
+  if (existing === 'all') return;
+  const set = existing ?? new Set<string>();
+  for (const rule of rulesArg.split(',')) set.add(rule.trim());
+  map.set(targetLine, set);
+}
+
+// Scans every line for `# yamllint-ts:disable-line[=rule,...]` and
+// `# yamllint-ts:disable-next-line[=rule,...]` comments, independent of the
+// main pass below, since a suppression comment can appear on a line the main
+// pass never looks at closely (e.g. a line with no key at all).
+function collectSuppressions(lines: string[]): Map<number, Suppression> {
+  const map = new Map<number, Suppression>();
+  lines.forEach((rawLine, i) => {
+    const commentIndex = findCommentIndex(rawLine);
+    if (commentIndex === -1) return;
+    const comment = rawLine.slice(commentIndex);
+    const lineNo = i + 1;
+    const lineMatch = comment.match(DISABLE_LINE);
+    if (lineMatch) addSuppression(map, lineNo, lineMatch[1]);
+    const nextMatch = comment.match(DISABLE_NEXT_LINE);
+    if (nextMatch) addSuppression(map, lineNo + 1, nextMatch[1]);
+  });
+  return map;
+}
+
+function isSuppressed(
+  suppressions: Map<number, Suppression>,
+  finding: Finding
+): boolean {
+  const suppression = suppressions.get(finding.line);
+  if (suppression === undefined) return false;
+  return suppression === 'all' || suppression.has(finding.rule);
 }
 
 export function lint(source: string): Finding[] {
   const findings: Finding[] = [];
   const lines = source.split(/\r\n|\n/);
+  const suppressions = collectSuppressions(lines);
   const stack: Frame[] = [];
 
   // The step size (in spaces) between a frame and its first-seen child is
@@ -153,5 +211,7 @@ export function lint(source: string): Finding[] {
     }
   });
 
-  return findings.sort((a, b) => a.line - b.line || a.column - b.column);
+  return findings
+    .filter((f) => !isSuppressed(suppressions, f))
+    .sort((a, b) => a.line - b.line || a.column - b.column);
 }

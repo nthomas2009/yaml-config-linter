@@ -22,6 +22,30 @@ actually show up in hand-edited config files.
   the file (this is how a stray extra space quietly nests a line under the
   wrong parent)
 
+## Suppressing a finding
+
+Sometimes a file has a line that legitimately needs to break a rule (a
+generated block with a trailing space it can't avoid, for example). Add a
+comment to silence it:
+
+```yaml
+key: value with a trailing space  # yamllint-ts:disable-line
+```
+
+or target the next line, when the line itself has no room for a comment:
+
+```yaml
+# yamllint-ts:disable-next-line=duplicate-key
+key: value
+```
+
+Both forms take an optional `=rule-a,rule-b` suffix to suppress only the
+named rules instead of everything on that line:
+
+```yaml
+key: value with a trailing space  # yamllint-ts:disable-line=trailing-whitespace
+```
+
 ## Usage
 
 Build once:
@@ -76,5 +100,5 @@ that function.
 
 ## Status
 
-Early. Four rules, no config file, no way to suppress a single finding
-inline. See the roadmap for what's planned next.
+Early. Four rules, inline suppression comments, no config file yet, no glob
+support (files must be named explicitly on the command line), no test suite.
