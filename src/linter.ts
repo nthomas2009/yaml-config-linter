@@ -100,7 +100,15 @@ function isSuppressed(
   return suppression === 'all' || suppression.has(finding.rule);
 }
 
-export function lint(source: string): Finding[] {
+export interface LintOptions {
+  // Rules named here are dropped from the output entirely, as if the file
+  // never triggered them. Distinct from inline suppression comments, which
+  // silence a single line rather than a rule everywhere.
+  disabledRules?: ReadonlySet<string>;
+}
+
+export function lint(source: string, options: LintOptions = {}): Finding[] {
+  const disabledRules = options.disabledRules ?? new Set<string>();
   const findings: Finding[] = [];
   const lines = source.split(/\r\n|\n/);
   const suppressions = collectSuppressions(lines);
@@ -212,6 +220,7 @@ export function lint(source: string): Finding[] {
   });
 
   return findings
+    .filter((f) => !disabledRules.has(f.rule))
     .filter((f) => !isSuppressed(suppressions, f))
     .sort((a, b) => a.line - b.line || a.column - b.column);
 }

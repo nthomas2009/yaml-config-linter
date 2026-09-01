@@ -46,6 +46,23 @@ named rules instead of everything on that line:
 key: value with a trailing space  # yamllint-ts:disable-line=trailing-whitespace
 ```
 
+## Disabling a rule everywhere
+
+Drop a `.yamllintrc` file in the directory you run the linter from to turn
+individual rules off for every file it checks:
+
+```json
+{
+  "rules": {
+    "indentation-consistency": false
+  }
+}
+```
+
+Any rule not listed stays enabled. This is for rules a project has decided
+not to enforce at all; for a single line that legitimately needs to break a
+rule, use an inline suppression comment instead (see above).
+
 ## Usage
 
 Build once:
@@ -100,5 +117,6 @@ that function.
 
 ## Status
 
-Early. Four rules, inline suppression comments, no config file yet, no glob
-support (files must be named explicitly on the command line), no test suite.
+Early. Four rules, inline suppression comments, a `.yamllintrc` for disabling
+rules project-wide, no glob support (files must be named explicitly on the
+command line), no test suite.
