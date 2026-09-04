@@ -103,6 +103,31 @@ it can be dropped into a pre-commit hook or CI step directly:
 node dist/cli.js config/*.yaml || exit 1
 ```
 
+Pass `--format json` for machine-readable output instead of the default
+text lines:
+
+```sh
+node dist/cli.js --format json config.yaml
+```
+
+```json
+{
+  "files": [
+    {
+      "path": "config.yaml",
+      "findings": [
+        { "line": 3, "column": 1, "rule": "tab-indentation", "message": "tabs are not allowed for indentation", "severity": "error" }
+      ]
+    }
+  ],
+  "errorCount": 1,
+  "warningCount": 0
+}
+```
+
+A file that could not be read gets an empty `findings` array and a
+`readError` string instead.
+
 ## How it works
 
 `src/linter.ts` exports a single `lint(source: string): Finding[]` function.
@@ -118,5 +143,5 @@ that function.
 ## Status
 
 Early. Four rules, inline suppression comments, a `.yamllintrc` for disabling
-rules project-wide, no glob support (files must be named explicitly on the
-command line), no test suite.
+rules project-wide, text or JSON output, no glob support (files must be named
+explicitly on the command line), no test suite.
