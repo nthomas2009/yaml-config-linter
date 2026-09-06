@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { lint, type Finding } from './linter.js';
 
 const CONFIG_FILE = '.yamllintrc';
@@ -19,6 +20,51 @@ interface ParsedArgs {
 
 function formatFinding(path: string, f: Finding): string {
   return `${path}:${f.line}:${f.column} ${f.severity} ${f.rule} - ${f.message}`;
+}
+
+function isYamlFile(name: string): boolean {
+  return name.endsWith('.yaml') || name.endsWith('.yml');
+}
+
+// Recursively collects .yaml/.yml files under `dir`. Dotfiles and
+// dot-directories (.git, .yamllintrc's own directory, editor swap dirs) are
+// skipped, since a bare `yamllint-ts .` at a repo root shouldn't walk into
+// version control or dependency metadata looking for config files.
+function walkDirectory(dir: string, out: string[]): void {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walkDirectory(full, out);
+    } else if (entry.isFile() && isYamlFile(entry.name)) {
+      out.push(full);
+    }
+  }
+}
+
+// Expands any directory in `paths` into the .yaml/.yml files under it. A
+// path that isn't a directory (including one that doesn't exist) passes
+// through unchanged, so the existing readFileSync error handling in main()
+// is still what reports a missing or unreadable file.
+function expandPaths(paths: string[]): string[] {
+  const expanded: string[] = [];
+  for (const path of paths) {
+    let isDir: boolean;
+    try {
+      isDir = statSync(path).isDirectory();
+    } catch {
+      isDir = false;
+    }
+    if (!isDir) {
+      expanded.push(path);
+      continue;
+    }
+    const found: string[] = [];
+    walkDirectory(path, found);
+    found.sort();
+    expanded.push(...found);
+  }
+  return expanded;
 }
 
 // Splits argv into file paths and recognized flags. Returns an error string
@@ -94,13 +140,16 @@ function main(argv: string[]): number {
     process.stderr.write(`${parsed.error}\n`);
     return 1;
   }
-  const { paths, format } = parsed;
+  const { format } = parsed;
 
-  if (paths.length === 0) {
-    process.stderr.write('usage: yamllint-ts [--format text|json] <file.yaml> [more files...]\n');
+  if (parsed.paths.length === 0) {
+    process.stderr.write(
+      'usage: yamllint-ts [--format text|json] <file.yaml|directory> [more paths...]\n'
+    );
     return 1;
   }
 
+  const paths = expandPaths(parsed.paths);
   const disabledRules = loadDisabledRules();
 
   let errorCount = 0;

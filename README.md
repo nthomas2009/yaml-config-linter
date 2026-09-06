@@ -71,11 +71,17 @@ Build once:
 npm run build
 ```
 
-Then run it against one or more files:
+Then run it against one or more files, or a directory:
 
 ```sh
 node dist/cli.js config.yaml
+node dist/cli.js config/
 ```
+
+A directory argument is expanded to every `.yaml`/`.yml` file found under it,
+recursively. Dotfiles and dot-directories (`.git`, and similar) are skipped
+during that walk. A file named explicitly on the command line is always
+checked regardless of its extension.
 
 Given this file:
 
@@ -143,5 +149,5 @@ that function.
 ## Status
 
 Early. Four rules, inline suppression comments, a `.yamllintrc` for disabling
-rules project-wide, text or JSON output, no glob support (files must be named
-explicitly on the command line), no test suite.
+rules project-wide, text or JSON output, directories are expanded to the
+`.yaml`/`.yml` files under them, no test suite.
