@@ -89,3 +89,57 @@ test('duplicate-key: re-indenting back to a shallower sibling after deep nesting
     [6, 8]
   );
 });
+
+test('indentation-consistency: flags a nested key indented differently than the step established earlier', () => {
+  const source = ['a:', '  b: 1', 'c:', '   d: 1'].join('\n');
+  const findings = lint(source);
+  const warnings = ruleFindings(findings, 'indentation-consistency');
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0].line, 4);
+  assert.equal(warnings[0].column, 4);
+  assert.match(warnings[0].message, /increases by 3 space\(s\) here but by 2 elsewhere/);
+});
+
+test('indentation-consistency: a file nested by the same step throughout is not flagged', () => {
+  const source = ['a:', '  b: 1', 'c:', '  d: 1'].join('\n');
+  const findings = lint(source);
+  assert.equal(ruleFindings(findings, 'indentation-consistency').length, 0);
+});
+
+test('indentation-consistency: list-entry step is tracked separately from mapping step', () => {
+  // "- " bakes a 2-space offset into the first list entry regardless of how
+  // deep the enclosing mapping is nested, so it must not be compared against
+  // the mapping step established by "a"/"b" above it.
+  const source = ['a:', '  b: 1', 'items:', '    - x: 1', '    - y: 1'].join('\n');
+  const findings = lint(source);
+  assert.equal(ruleFindings(findings, 'indentation-consistency').length, 0);
+});
+
+test('comment-stripping: a hash inside a double-quoted value is not treated as a comment', () => {
+  const findings = lint('a: "value # not a comment"');
+  assert.equal(findings.length, 0);
+});
+
+test('comment-stripping: a hash inside a single-quoted value is not treated as a comment', () => {
+  const findings = lint("a: 'value # not a comment'");
+  assert.equal(findings.length, 0);
+});
+
+test('comment-stripping: a hash with no preceding whitespace does not start a comment', () => {
+  const findings = lint('a: http://example.com#fragment');
+  assert.equal(findings.length, 0);
+});
+
+test('comment-stripping: trailing whitespace inside a comment is still flagged', () => {
+  // Trailing whitespace is checked against the raw line, before stripComment
+  // runs, so a comment can't be used to hide it.
+  const findings = lint('a: 1  # comment with trailing space   ');
+  assert.equal(ruleFindings(findings, 'trailing-whitespace').length, 1);
+});
+
+test('comment-stripping: a comment-only line is not checked for tab indentation', () => {
+  // Once the comment is stripped there is no content left on the line, so
+  // the tab-indentation check (which only looks at real content) never runs.
+  const findings = lint('\t# a comment, not code');
+  assert.equal(ruleFindings(findings, 'tab-indentation').length, 0);
+});

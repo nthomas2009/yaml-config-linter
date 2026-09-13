@@ -151,5 +151,7 @@ that function.
 Early. Four rules, inline suppression comments, a `.yamllintrc` for disabling
 rules project-wide, text or JSON output, directories are expanded to the
 `.yaml`/`.yml` files under them. `src/linter.test.ts` covers the frame stack
-(nested duplicates, list entries vs. mapping keys, multi-level dedents);
-`npm test` builds and runs it with Node's built-in test runner.
+(nested duplicates, list entries vs. mapping keys, multi-level dedents),
+the `indentation-consistency` step-tracking, and comment-stripping edge
+cases (quoted `#`, mid-token `#`, comment-only lines); `npm test` builds and
+runs it with Node's built-in test runner.
