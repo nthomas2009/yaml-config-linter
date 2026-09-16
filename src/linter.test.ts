@@ -143,3 +143,32 @@ test('comment-stripping: a comment-only line is not checked for tab indentation'
   const findings = lint('\t# a comment, not code');
   assert.equal(ruleFindings(findings, 'tab-indentation').length, 0);
 });
+
+test('empty-document: a zero-length source is flagged', () => {
+  const findings = lint('');
+  const empty = ruleFindings(findings, 'empty-document');
+  assert.equal(empty.length, 1);
+  assert.equal(empty[0].line, 1);
+  assert.equal(empty[0].column, 1);
+  assert.equal(empty[0].severity, 'warning');
+});
+
+test('empty-document: blank lines with no other content are flagged', () => {
+  const findings = lint('\n  \n\n');
+  assert.equal(ruleFindings(findings, 'empty-document').length, 1);
+});
+
+test('empty-document: a file with only comments is flagged', () => {
+  const findings = lint(['# header', '', '# another note'].join('\n'));
+  assert.equal(ruleFindings(findings, 'empty-document').length, 1);
+});
+
+test('empty-document: a file with any real content is not flagged', () => {
+  const findings = lint('a: 1');
+  assert.equal(ruleFindings(findings, 'empty-document').length, 0);
+});
+
+test('empty-document: a bare scalar document with no keys counts as content', () => {
+  const findings = lint('just a string, no mapping keys here');
+  assert.equal(ruleFindings(findings, 'empty-document').length, 0);
+});

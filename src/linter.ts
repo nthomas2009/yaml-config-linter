@@ -121,6 +121,12 @@ export function lint(source: string, options: LintOptions = {}): Finding[] {
   let mapStep: number | null = null;
   let listStep: number | null = null;
 
+  // Set the first time a line has anything left after stripping comments and
+  // trimming whitespace. A file that never sets this is either genuinely
+  // empty or nothing but comments, which YAML treats as "no document" --
+  // easy to mistake for a config that was actually filled in.
+  let hasContent = false;
+
   lines.forEach((rawLine, i) => {
     const lineNo = i + 1;
 
@@ -139,6 +145,7 @@ export function lint(source: string, options: LintOptions = {}): Finding[] {
 
     const content = stripComment(rawLine);
     if (content.trim() === '') return;
+    hasContent = true;
 
     const indentText = content.match(/^[ \t]*/)![0];
     const tabIndex = indentText.indexOf('\t');
@@ -218,6 +225,18 @@ export function lint(source: string, options: LintOptions = {}): Finding[] {
       }
     }
   });
+
+  if (!hasContent) {
+    findings.push(
+      makeFinding(
+        1,
+        1,
+        'empty-document',
+        'file contains no YAML content (empty or only comments)',
+        'warning'
+      )
+    );
+  }
 
   return findings
     .filter((f) => !disabledRules.has(f.rule))

@@ -21,6 +21,9 @@ actually show up in hand-edited config files.
   different number of spaces than the step already established elsewhere in
   the file (this is how a stray extra space quietly nests a line under the
   wrong parent)
+- `empty-document` - the file is empty, or every line is blank or a comment,
+  so there's no actual YAML document in it (often a sign a config was never
+  filled in, or a template got checked in by mistake)
 
 ## Suppressing a finding
 
@@ -148,7 +151,7 @@ that function.
 
 ## Status
 
-Early. Four rules, inline suppression comments, a `.yamllintrc` for disabling
+Early. Five rules, inline suppression comments, a `.yamllintrc` for disabling
 rules project-wide, text or JSON output, directories are expanded to the
 `.yaml`/`.yml` files under them. `src/linter.test.ts` covers the frame stack
 (nested duplicates, list entries vs. mapping keys, multi-level dedents),
